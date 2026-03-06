@@ -10,19 +10,20 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST,
     port: parseInt(process.env.DB_PORT) || 5432,
     dialect: 'postgres',
-    logging: process.env.NODE_ENV === 'development' ? (msg) => logger.debug(msg) : false,
+    logging: false,
     pool: {
-      max: parseInt(process.env.DB_POOL_MAX) || 10,
-      min: parseInt(process.env.DB_POOL_MIN) || 2,
-      acquire: 30000,
+      max: 5,
+      min: 0,
+      acquire: 60000,
       idle: 10000,
     },
     dialectOptions: {
-  ssl: {
-    require: true,
-    rejectUnauthorized: false,
-  },
-},
+      ssl: {
+        require: true,
+        rejectUnauthorized: false,
+      },
+    },
+  }
 );
 
 const connectDB = async () => {
@@ -31,7 +32,7 @@ const connectDB = async () => {
     logger.info('✅ Database connection established successfully');
     if (process.env.NODE_ENV === 'development') {
       await sequelize.sync({ force: false });
-      logger.info('✅ Database synced (alter mode)');
+      logger.info('✅ Database synced');
     }
   } catch (error) {
     logger.error('❌ Database connection failed:', error);
