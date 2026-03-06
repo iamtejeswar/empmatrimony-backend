@@ -81,7 +81,7 @@ const sendWelcomeEmail = async (email, firstName, lastName) => {
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: 'MatrimonyPlatform <onboarding@resend.dev>,
+      from: 'MatrimonyPlatform <onboarding@resend.dev>',
       to: email,
       subject: `Welcome to MatrimonyPlatform, ${firstName}!`,
       html: `
