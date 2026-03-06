@@ -4,11 +4,11 @@ const logger = require('../config/logger');
 
 const createTransporter = () => {
   return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: parseInt(process.env.EMAIL_PORT),
-    secure: false,
+    host: 'smtp.resend.com',
+    port: 465,
+    secure: true,
     auth: {
-      user: process.env.EMAIL_USER,
+      user: 'resend',
       pass: process.env.EMAIL_PASSWORD,
     },
   });
@@ -23,7 +23,7 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
     const purposeText = purpose === 'login' ? 'Sign In' : 'Email Verification';
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: 'MatrimonyPlatform <onboarding@resend.dev>',
       to: email,
       subject: `${purposeText} OTP - MatrimonyPlatform`,
       html: `
@@ -81,7 +81,7 @@ const sendWelcomeEmail = async (email, firstName, lastName) => {
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: 'MatrimonyPlatform <onboarding@resend.dev>,
       to: email,
       subject: `Welcome to MatrimonyPlatform, ${firstName}!`,
       html: `
@@ -139,7 +139,7 @@ const sendAccountStatusEmail = async (email, firstName, status, reason = '') => 
     const { subject, body } = statusMessages[status] || { subject: 'Account Update', body: 'Your account status has been updated.' };
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: 'MatrimonyPlatform <onboarding@resend.dev>',
       to: email,
       subject: `${subject} - MatrimonyPlatform`,
       html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 40px; background: #fff; border-radius: 12px;">
