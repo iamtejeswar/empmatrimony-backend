@@ -131,7 +131,11 @@ const startServer = async () => {
   await connectDB();
 
   // Import models to register associations
+  const { sequelize } = require('./config/database');
   require('./models/index');
+//Sync models to existing tables (no force, no alter)
+  await sequelize.sync({ force: false, alter: false });
+  logger.info('✅ Models synced to existing tables');
 
   app.listen(PORT, () => {
     logger.info(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
