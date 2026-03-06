@@ -27,6 +27,7 @@ const documentRoutes = require('./routes/documents');
 if (!fs.existsSync('logs')) fs.mkdirSync('logs', { recursive: true });
 
 const app = express();
+app.set('trust proxy', 1);
 const API_PREFIX = `/api/${process.env.API_VERSION || 'v1'}`;
 
 // ---- Security Middleware ----
