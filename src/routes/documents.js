@@ -1,113 +1,100 @@
-// src/routes/documents.js
-const router = require('express').Router();
-const multer = require('multer');
-const path = require('path');
+const express = require('express');
+const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { AppError } = require('../utils/AppError');
+const { uploadProfilePicture, uploadDocument, cloudinary } = require('../config/cloudinary');
 const { Document } = require('../models');
 const logger = require('../config/logger');
 
-// Multer config - memory storage (for S3 upload)
-const storage = multer.memoryStorage();
-
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new AppError('Only JPEG, PNG, and PDF files are allowed', 400), false);
-  }
-};
-
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-});
-
-const VALID_DOC_TYPES = [
-  'profile_picture', 'aadhaar', 'pan', 'driving_license',
-  'employee_id', 'payslip', 'passport',
-];
-
-/**
- * @route   POST /api/v1/documents/upload
- * @desc    Upload a document
- * @access  Private
- */
-router.post('/upload', authenticate, upload.single('document'), async (req, res, next) => {
+// Upload profile picture
+router.post('/profile-picture', authenticate, uploadProfilePicture.single('file'), async (req, res) => {
   try {
-    if (!req.file) return next(new AppError('No file uploaded', 400));
+    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
 
-    const { documentType } = req.body;
-    if (!VALID_DOC_TYPES.includes(documentType)) {
-      return next(new AppError('Invalid document type', 400));
+    const oldDoc = await Document.findOne({
+      where: { userId: req.user.id, documentType: 'profile_picture' }
+    });
+    if (oldDoc && oldDoc.s3Key) {
+      await cloudinary.uploader.destroy(oldDoc.s3Key);
+      await oldDoc.destroy();
     }
 
-    // In production: upload to S3
-    // For demo: save metadata with a mock S3 key
-    const s3Key = `users/${req.user.id}/${documentType}/${Date.now()}_${req.file.originalname}`;
-
-    // Save document record
     const document = await Document.create({
       userId: req.user.id,
-      documentType,
+      documentType: 'profile_picture',
       originalName: req.file.originalname,
-      s3Key,
-      s3Bucket: process.env.AWS_S3_BUCKET || 'matrimony-documents',
+      s3Key: req.file.filename,
+      s3Bucket: 'cloudinary',
       mimeType: req.file.mimetype,
       fileSize: req.file.size,
-      isEncrypted: true,
-      verificationStatus: 'pending',
+      verificationStatus: 'verified',
     });
 
-    logger.info(`Document uploaded: ${documentType} for user ${req.user.id}`);
-
-    res.status(201).json({
+    res.json({
       success: true,
-      message: 'Document uploaded successfully',
-      data: {
-        document: {
-          id: document.id,
-          documentType: document.documentType,
-          verificationStatus: document.verificationStatus,
-          createdAt: document.createdAt,
-        },
-      },
+      message: 'Profile picture uploaded',
+      data: { url: req.file.path, documentId: document.id }
     });
   } catch (error) {
-    next(error);
+    logger.error('Upload error:', error);
+    res.status(500).json({ success: false, message: 'Upload failed' });
   }
 });
 
-/**
- * @route   GET /api/v1/documents
- * @desc    Get user's documents (metadata only, no URLs)
- */
-router.get('/', authenticate, async (req, res, next) => {
+// Upload document
+router.post('/upload', authenticate, uploadDocument.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+
+    const { documentType } = req.body;
+
+    const document = await Document.create({
+      userId: req.user.id,
+      documentType: documentType || 'other',
+      originalName: req.file.originalname,
+      s3Key: req.file.filename,
+      s3Bucket: 'cloudinary',
+      mimeType: req.file.mimetype,
+      fileSize: req.file.size,
+    });
+
+    res.json({
+      success: true,
+      message: 'Document uploaded successfully',
+      data: { url: req.file.path, documentId: document.id, document }
+    });
+  } catch (error) {
+    logger.error('Upload error:', error);
+    res.status(500).json({ success: false, message: 'Upload failed' });
+  }
+});
+
+// Get my documents
+router.get('/', authenticate, async (req, res) => {
   try {
     const documents = await Document.findAll({
       where: { userId: req.user.id },
-      attributes: ['id', 'documentType', 'originalName', 'verificationStatus', 'createdAt'],
+      order: [['createdAt', 'DESC']],
     });
     res.json({ success: true, data: { documents } });
   } catch (error) {
-    next(error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
-/**
- * @route   DELETE /api/v1/documents/:id
- * @desc    Delete a document
- */
-router.delete('/:id', authenticate, async (req, res, next) => {
+// Delete document
+router.delete('/:id', authenticate, async (req, res) => {
   try {
-    const doc = await Document.findOne({ where: { id: req.params.id, userId: req.user.id } });
-    if (!doc) return next(new AppError('Document not found', 404));
-    await doc.destroy();
+    const document = await Document.findOne({
+      where: { id: req.params.id, userId: req.user.id }
+    });
+    if (!document) return res.status(404).json({ success: false, message: 'Document not found' });
+
+    await cloudinary.uploader.destroy(document.s3Key);
+    await document.destroy();
+
     res.json({ success: true, message: 'Document deleted' });
   } catch (error) {
-    next(error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
