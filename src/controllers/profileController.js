@@ -164,7 +164,7 @@ const getPublicProfile = async (req, res, next) => {
     next(error);
   }
 };
-
+//Redeploy trigger
 module.exports = {
   getMyProfile,
   savePersonalDetails,
