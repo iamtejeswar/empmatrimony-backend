@@ -35,7 +35,7 @@ router.post('/profile-picture', authenticate, uploadProfilePicture.single('file'
       data: { url: req.file.path, documentId: document.id }
     });
   } catch (error) {
-    logger.error('Upload error:', error);
+    logger.error('Upload error: ' + error.message + ' ' + error.stack);
     res.status(500).json({ success: false, message: 'Upload failed' });
   }
 });
