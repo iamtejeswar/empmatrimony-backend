@@ -93,11 +93,14 @@ const swaggerOptions = {
   apis: ['./src/routes/*.js', './src/controllers/*.js'],
 };
 
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use(`${API_PREFIX}/docs`, swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { background-color: #1a237e; }',
-  customSiteTitle: 'Matrimony API Docs',
-}));
+if (process.env.SWAGGER_ENABLED === 'true') {
+  const swaggerSpec = swaggerJsdoc(swaggerOptions);
+  app.use(`${API_PREFIX}/docs`, swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { background-color: #1a237e; }',
+    customSiteTitle: 'Matrimony API Docs',
+  }));
+  logger.info('📚 Swagger docs enabled (development only)');
+}
 
 // ---- Health Check ----
 app.get('/health', (req, res) => {
