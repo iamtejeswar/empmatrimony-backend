@@ -2,7 +2,7 @@
 const { Op } = require('sequelize');
 const { User, PersonalDetails, FamilyDetails, EmploymentDetails, CommunityDetails } = require('../models');
 const { AppError } = require('../utils/AppError');
-
+//for deploy
 /**
  * Calculate age from date of birth
  */
