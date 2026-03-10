@@ -149,6 +149,15 @@ app.get('/seed-profiles', async (req, res) => {
       ['a1b2c3d4-0020-0020-0020-000000000020','Shreya','Bose','shreya.bose@test.com','9100000020','female','1995-08-07','gold'],
     ];
 
+
+
+    await sequelize.query(`DELETE FROM employment_details WHERE user_id LIKE 'a1b2c3d4%'`);
+    await sequelize.query(`DELETE FROM family_details WHERE user_id LIKE 'a1b2c3d4%'`);
+    await sequelize.query(`DELETE FROM community_details WHERE user_id LIKE 'a1b2c3d4%'`);
+    await sequelize.query(`DELETE FROM personal_details WHERE user_id LIKE 'a1b2c3d4%'`);
+    await sequelize.query(`DELETE FROM users WHERE id LIKE 'a1b2c3d4%'`);
+
+
     const errors = [];
     let inserted = 0;
     for (const u of users) {
