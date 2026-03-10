@@ -158,7 +158,7 @@ app.get('/seed-profiles', async (req, res) => {
           VALUES ('${u[0]}','${u[1]}','${u[2]}','${u[3]}','${u[4]}','${u[5]}','${u[6]}','user','active',true,true,true,5,'${u[7]}',NOW(),NOW())
         `);
         inserted++;
-      } catch(e) catch(e) { errors.push(`${u[3]}: ${e.message}`); }
+      } catch(e)  { errors.push(`${u[3]}: ${e.message}`); }
     }
 
     const personalDetails = [
