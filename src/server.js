@@ -149,6 +149,7 @@ app.get('/seed-profiles', async (req, res) => {
       ['a1b2c3d4-0020-0020-0020-000000000020','Shreya','Bose','shreya.bose@test.com','9100000020','female','1995-08-07','gold'],
     ];
 
+    const errors = [];
     let inserted = 0;
     for (const u of users) {
       try {
@@ -157,7 +158,7 @@ app.get('/seed-profiles', async (req, res) => {
           VALUES ('${u[0]}','${u[1]}','${u[2]}','${u[3]}','${u[4]}','${u[5]}','${u[6]}','user','active',true,true,true,5,'${u[7]}',NOW(),NOW())
         `);
         inserted++;
-      } catch(e) { /* skip duplicate */ }
+      } catch(e) catch(e) { errors.push(`${u[3]}: ${e.message}`); }
     }
 
     const personalDetails = [
@@ -276,7 +277,7 @@ app.get('/seed-profiles', async (req, res) => {
       } catch(e2) { /* skip duplicate */ }
     }
 
-    res.json({ success: true, message: `${inserted} users inserted! All details seeded.` });
+    res.json({ success: true, message: `${inserted} users inserted!`, errors });
   } catch (error) {
     res.json({ success: false, error: error.message });
   }
