@@ -33,7 +33,13 @@ const API_PREFIX = `/api/${process.env.API_VERSION || 'v1'}`;
 // ---- Security Middleware ----
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({
-  origin: [process.env.FRONTEND_URL || 'http://localhost:3000', 'http://localhost:3001'],
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    'http://localhost:3001',
+    'https://employeematrimony.com',
+    'https://www.employeematrimony.com',
+    'https://empmatrimony-frontend.vercel.app',
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
