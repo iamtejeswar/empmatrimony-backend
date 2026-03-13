@@ -15,7 +15,7 @@ const { connectDB } = require('./config/database');
 const logger = require('./config/logger');
 const errorHandler = require('./middleware/errorHandler');
 const { AppError } = require('./utils/AppError');
-
+const interestRoutes = require('./routes/interests');
 // Route imports
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
@@ -131,7 +131,7 @@ app.use(`${API_PREFIX}/documents`, documentRoutes);
 app.use('*', (req, res, next) => {
   next(new AppError(`Route ${req.originalUrl} not found`, 404));
 });
-
+app.use(`${API_PREFIX}/interests`, interestRoutes);
 // ---- Global Error Handler ----
 app.use(errorHandler);
 
