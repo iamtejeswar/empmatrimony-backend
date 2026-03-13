@@ -7,7 +7,7 @@ router.get('/create-profile-views', async (req, res) => {
   try {
     await sequelize.query(`
       CREATE TABLE IF NOT EXISTS profile_views (
-        id        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         viewer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         viewed_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         viewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

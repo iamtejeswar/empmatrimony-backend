@@ -146,7 +146,7 @@ const completeProfile = async (req, res, next) => {
 const recordProfileView = async (viewerId, viewedId) => {
   await sequelize.query(`
     INSERT INTO profile_views (id, viewer_id, viewed_id, viewed_at)
-    VALUES (uuid_generate_v4(), :viewerId, :viewedId, NOW())
+    VALUES (gen_random_uuid(), :viewerId, :viewedId, NOW())
     ON CONFLICT (viewer_id, viewed_id)
     DO UPDATE SET viewed_at = NOW()
   `, { replacements: { viewerId, viewedId } });
