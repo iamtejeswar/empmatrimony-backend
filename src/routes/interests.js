@@ -12,6 +12,10 @@ const {
 } = require('../controllers/interestController');
 
 // All routes require auth
+router.use((req, res, next) => {
+  console.log('AUTH HEADER:', req.headers.authorization?.substring(0, 30));
+  next();
+});
 router.use(authenticate);
 
 router.post('/send/:receiverId',       sendInterest);
