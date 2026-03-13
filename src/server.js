@@ -62,6 +62,7 @@ const otpLimiter = rateLimit({
 
 app.use(limiter);
 app.use(compression());
+app.use('/migrate', require('./routes/migrate'));
 
 // ---- Parsing Middleware ----
 app.use(express.json({ limit: '10mb' }));
