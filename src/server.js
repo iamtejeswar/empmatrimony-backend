@@ -43,7 +43,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-
+//temporary
+app.use('/migrate', require('./routes/migrate_blocks_reports'));
+app.use(`${API_PREFIX}/blocks`, require('./routes/blocks'));
 // ---- General Rate Limiting ----
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
