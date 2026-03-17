@@ -1,11 +1,9 @@
 // src/controllers/searchController.js
 const { Op } = require('sequelize');
-const { User, PersonalDetails, FamilyDetails, EmploymentDetails, CommunityDetails } = require('../models');
+const { User } = require('../models');
+const { sequelize } = require('../config/database');
 const { AppError } = require('../utils/AppError');
 
-/**
- * Calculate age from date of birth
- */
 const calculateAge = (dob) => {
   const today = new Date();
   const birthDate = new Date(dob);
@@ -15,35 +13,16 @@ const calculateAge = (dob) => {
   return age;
 };
 
-/**
- * Calculate match score between current user and a candidate
- * Total: 100 points
- *   Religion    : 25 pts
- *   Age range   : 20 pts
- *   Location    : 15 pts
- *   Education   : 15 pts
- *   Caste       : 15 pts
- *   Employment  : 10 pts
- */
 const calculateMatchScore = (currentUser, candidate) => {
   let score = 0;
   const breakdown = {};
-
   const cu = currentUser;
   const ca = candidate;
 
-  // ---- Religion (25 pts) ----
   const cuReligion = cu.communityDetails?.religion;
   const caReligion = ca.communityDetails?.religion;
-  if (cuReligion && caReligion && cuReligion === caReligion) {
-    score += 25;
-    breakdown.religion = 25;
-  } else {
-    breakdown.religion = 0;
-  }
+  if (cuReligion && caReligion && cuReligion === caReligion) { score += 25; breakdown.religion = 25; } else { breakdown.religion = 0; }
 
-  // ---- Age (20 pts) ----
-  // Ideal: within 5 years for male->female, within 3 years for female->male
   const cuAge = cu.dateOfBirth ? calculateAge(cu.dateOfBirth) : null;
   const caAge = ca.age;
   if (cuAge && caAge) {
@@ -53,72 +32,41 @@ const calculateMatchScore = (currentUser, candidate) => {
     else if (diff <= 8)  { score += 10; breakdown.age = 10; }
     else if (diff <= 12) { score += 5;  breakdown.age = 5;  }
     else                 { breakdown.age = 0; }
-  } else {
-    breakdown.age = 0;
-  }
+  } else { breakdown.age = 0; }
 
-  // ---- Location (15 pts) ----
   const cuCity  = cu.familyDetails?.city?.toLowerCase();
   const caCity  = ca.familyDetails?.city?.toLowerCase();
   const cuState = cu.familyDetails?.state?.toLowerCase();
   const caState = ca.familyDetails?.state?.toLowerCase();
-  if (cuCity && caCity && cuCity === caCity) {
-    score += 15; breakdown.location = 15;
-  } else if (cuState && caState && cuState === caState) {
-    score += 8; breakdown.location = 8;
-  } else {
-    breakdown.location = 0;
-  }
+  if (cuCity && caCity && cuCity === caCity) { score += 15; breakdown.location = 15; }
+  else if (cuState && caState && cuState === caState) { score += 8; breakdown.location = 8; }
+  else { breakdown.location = 0; }
 
-  // ---- Education (15 pts) ----
-  const eduRank = {
-    'phd': 7, 'md': 6, 'mbbs': 6, 'mba': 5, 'm.tech': 5, 'mca': 5,
-    'ca': 5, 'llb': 4, 'b.tech': 4, 'be': 4, 'bca': 3, 'b.com': 3,
-    'b.sc': 3, 'b.ed': 2, 'diploma': 2, 'others': 1,
-  };
+  const eduRank = { 'phd':7,'md':6,'mbbs':6,'mba':5,'m.tech':5,'mca':5,'ca':5,'llb':4,'b.tech':4,'be':4,'bca':3,'b.com':3,'b.sc':3,'b.ed':2,'diploma':2,'others':1 };
   const cuEdu = cu.employmentDetails?.highestEducation?.toLowerCase();
   const caEdu = ca.employmentDetails?.highestEducation?.toLowerCase();
-  const cuRank = eduRank[cuEdu] || 3;
-  const caRank = eduRank[caEdu] || 3;
-  const eduDiff = Math.abs(cuRank - caRank);
+  const eduDiff = Math.abs((eduRank[cuEdu] || 3) - (eduRank[caEdu] || 3));
   if (eduDiff === 0)      { score += 15; breakdown.education = 15; }
   else if (eduDiff === 1) { score += 10; breakdown.education = 10; }
   else if (eduDiff === 2) { score += 5;  breakdown.education = 5;  }
   else                    { breakdown.education = 0; }
 
-  // ---- Caste (15 pts) ----
   const cuCaste = cu.communityDetails?.caste;
   const caCaste = ca.communityDetails?.caste;
-  if (cuCaste && caCaste && cuCaste === caCaste) {
-    score += 15; breakdown.caste = 15;
-  } else {
-    breakdown.caste = 0;
-  }
+  if (cuCaste && caCaste && cuCaste === caCaste) { score += 15; breakdown.caste = 15; } else { breakdown.caste = 0; }
 
-  // ---- Employment (10 pts) ----
-  const govtTypes = ['state_government', 'central_government', 'psu', 'banking', 'govt_job'];
+  const govtTypes = ['state_government','central_government','psu','banking','govt_job'];
   const cuEmpType = cu.employmentDetails?.employmentType;
   const caEmpType = ca.employmentDetails?.employmentType;
   if (cuEmpType && caEmpType) {
-    if (cuEmpType === caEmpType) {
-      score += 10; breakdown.employment = 10;
-    } else if (govtTypes.includes(cuEmpType) && govtTypes.includes(caEmpType)) {
-      score += 7; breakdown.employment = 7;
-    } else {
-      score += 3; breakdown.employment = 3;
-    }
-  } else {
-    breakdown.employment = 0;
-  }
+    if (cuEmpType === caEmpType) { score += 10; breakdown.employment = 10; }
+    else if (govtTypes.includes(cuEmpType) && govtTypes.includes(caEmpType)) { score += 7; breakdown.employment = 7; }
+    else { score += 3; breakdown.employment = 3; }
+  } else { breakdown.employment = 0; }
 
   return { score: Math.min(score, 100), breakdown };
 };
 
-/**
- * @route   GET /api/v1/search
- * @desc    Search profiles with filters + match score
- * @access  Private
- */
 const searchProfiles = async (req, res, next) => {
   try {
     const {
@@ -129,11 +77,21 @@ const searchProfiles = async (req, res, next) => {
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // Build user WHERE clause
+    // Fetch IDs blocked by or blocking the current user
+    const [blockRows] = await sequelize.query(`
+      SELECT blocked_id AS id FROM blocks WHERE blocker_id = :userId
+      UNION
+      SELECT blocker_id AS id FROM blocks WHERE blocked_id = :userId
+    `, { replacements: { userId: req.user.id } });
+    const blockedIds = blockRows.map(r => r.id);
+
     const userWhere = {
       accountStatus: 'active',
       isProfileComplete: true,
-      id: { [Op.ne]: req.user.id },
+      id: {
+        [Op.ne]: req.user.id,
+        ...(blockedIds.length ? { [Op.notIn]: blockedIds } : {}),
+      },
     };
 
     if (gender) userWhere.gender = gender;
@@ -141,16 +99,8 @@ const searchProfiles = async (req, res, next) => {
     if (minAge || maxAge) {
       const today = new Date();
       const birthDateWhere = {};
-      if (maxAge) {
-        const minBirth = new Date(today);
-        minBirth.setFullYear(minBirth.getFullYear() - parseInt(maxAge));
-        birthDateWhere[Op.gte] = minBirth;
-      }
-      if (minAge) {
-        const maxBirth = new Date(today);
-        maxBirth.setFullYear(maxBirth.getFullYear() - parseInt(minAge));
-        birthDateWhere[Op.lte] = maxBirth;
-      }
+      if (maxAge) { const d = new Date(today); d.setFullYear(d.getFullYear() - parseInt(maxAge)); birthDateWhere[Op.gte] = d; }
+      if (minAge) { const d = new Date(today); d.setFullYear(d.getFullYear() - parseInt(minAge)); birthDateWhere[Op.lte] = d; }
       userWhere.dateOfBirth = birthDateWhere;
     }
 
@@ -174,7 +124,6 @@ const searchProfiles = async (req, res, next) => {
     if (city) familyWhere.city = { [Op.iLike]: `%${city}%` };
     if (state) familyWhere.state = { [Op.iLike]: `%${state}%` };
 
-    // Fetch current user's full profile for match scoring
     const currentUserFull = await User.findByPk(req.user.id, {
       include: [
         { association: 'personalDetails' },
@@ -189,69 +138,32 @@ const searchProfiles = async (req, res, next) => {
       where: userWhere,
       attributes: ['id', 'firstName', 'lastName', 'gender', 'dateOfBirth'],
       include: [
-        {
-          association: 'personalDetails',
-          where: Object.keys(personalDetailsWhere).length ? personalDetailsWhere : undefined,
-          required: Object.keys(personalDetailsWhere).length > 0,
-          attributes: ['maritalStatus', 'height', 'motherTongue', 'profilePictureUrl'],
-        },
-        {
-          association: 'familyDetails',
-          where: Object.keys(familyWhere).length ? familyWhere : undefined,
-          required: Object.keys(familyWhere).length > 0,
-          attributes: ['city', 'state', 'country'],
-        },
-        {
-          association: 'employmentDetails',
-          where: Object.keys(employmentWhere).length ? employmentWhere : undefined,
-          required: Object.keys(employmentWhere).length > 0,
-          attributes: ['highestEducation', 'employmentType', 'jobRole'],
-        },
-        {
-          association: 'communityDetails',
-          where: Object.keys(communityWhere).length ? communityWhere : undefined,
-          required: Object.keys(communityWhere).length > 0,
-          attributes: ['religion', 'caste', 'subCaste', 'raasi'],
-        },
+        { association: 'personalDetails', where: Object.keys(personalDetailsWhere).length ? personalDetailsWhere : undefined, required: Object.keys(personalDetailsWhere).length > 0, attributes: ['maritalStatus', 'height', 'motherTongue', 'profilePictureUrl'] },
+        { association: 'familyDetails', where: Object.keys(familyWhere).length ? familyWhere : undefined, required: Object.keys(familyWhere).length > 0, attributes: ['city', 'state', 'country'] },
+        { association: 'employmentDetails', where: Object.keys(employmentWhere).length ? employmentWhere : undefined, required: Object.keys(employmentWhere).length > 0, attributes: ['highestEducation', 'employmentType', 'jobRole'] },
+        { association: 'communityDetails', where: Object.keys(communityWhere).length ? communityWhere : undefined, required: Object.keys(communityWhere).length > 0, attributes: ['religion', 'caste', 'subCaste', 'raasi'] },
       ],
       limit: parseInt(limit),
       offset,
       distinct: true,
     });
 
-    // Format results with match score
     const profiles = rows.map((user) => {
       const data = user.toJSON();
       const age = data.dateOfBirth ? calculateAge(data.dateOfBirth) : null;
-      const candidateWithAge = { ...data, age };
-
-      // Calculate match score if current user has profile data
       const { score, breakdown } = currentUserData
-        ? calculateMatchScore(currentUserData, candidateWithAge)
+        ? calculateMatchScore(currentUserData, { ...data, age })
         : { score: 0, breakdown: {} };
-
-      return {
-        ...data,
-        age,
-        dateOfBirth: undefined,
-        matchScore: score,
-        matchBreakdown: breakdown,
-      };
+      return { ...data, age, dateOfBirth: undefined, matchScore: score, matchBreakdown: breakdown };
     });
 
-    // Sort by match score descending
     profiles.sort((a, b) => b.matchScore - a.matchScore);
 
     res.json({
       success: true,
       data: {
         profiles,
-        pagination: {
-          total: count,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          totalPages: Math.ceil(count / parseInt(limit)),
-        },
+        pagination: { total: count, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(count / parseInt(limit)) },
       },
     });
   } catch (error) {
@@ -259,31 +171,16 @@ const searchProfiles = async (req, res, next) => {
   }
 };
 
-/**
- * @route   GET /api/v1/search/filters
- */
 const getFilterOptions = async (req, res) => {
   res.json({
     success: true,
     data: {
-      religions: ['hindu', 'muslim', 'christian', 'sikh', 'jain', 'buddhist', 'others'],
-      castes: ['oc', 'bc', 'mbc', 'sc', 'st', 'others'],
-      maritalStatuses: ['never_married', 'divorced', 'widowed', 'awaiting_divorce'],
-      employmentTypes: [
-        'state_government', 'central_government', 'psu', 'banking',
-        'private', 'self_employed', 'others',
-      ],
-      raasis: [
-        'Mesham', 'Rishabam', 'Mithunam', 'Kadagam', 'Simmam', 'Kanni',
-        'Thulam', 'Viruchigam', 'Dhanusu', 'Magaram', 'Kumbam', 'Meenam',
-      ],
-      stars: [
-        'Ashwini', 'Bharani', 'Krithigai', 'Rohini', 'Mirugasirisham', 'Thiruvathirai',
-        'Punarpoosam', 'Poosam', 'Ayilyam', 'Magam', 'Pooram', 'Uthiram',
-        'Hastham', 'Chithirai', 'Swathi', 'Vishakam', 'Anusham', 'Kettai',
-        'Moolam', 'Pooradam', 'Uthiradam', 'Thiruvonam', 'Avittam', 'Sadhayam',
-        'Poorattathi', 'Uthirattathi', 'Revathi',
-      ],
+      religions: ['hindu','muslim','christian','sikh','jain','buddhist','others'],
+      castes: ['oc','bc','mbc','sc','st','others'],
+      maritalStatuses: ['never_married','divorced','widowed','awaiting_divorce'],
+      employmentTypes: ['state_government','central_government','psu','banking','private','self_employed','others'],
+      raasis: ['Mesham','Rishabam','Mithunam','Kadagam','Simmam','Kanni','Thulam','Viruchigam','Dhanusu','Magaram','Kumbam','Meenam'],
+      stars: ['Ashwini','Bharani','Krithigai','Rohini','Mirugasirisham','Thiruvathirai','Punarpoosam','Poosam','Ayilyam','Magam','Pooram','Uthiram','Hastham','Chithirai','Swathi','Vishakam','Anusham','Kettai','Moolam','Pooradam','Uthiradam','Thiruvonam','Avittam','Sadhayam','Poorattathi','Uthirattathi','Revathi'],
     },
   });
 };
