@@ -57,7 +57,7 @@ io.use((socket, next) => {
   if (!token) return next(new Error('Authentication required'));
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.userId = decoded.id;
+    socket.userId = decoded.userId;   // ← FIXED
     next();
   } catch {
     next(new Error('Invalid token'));
