@@ -10,13 +10,11 @@ const getConversations = async (req, res, next) => {
         c.id,
         c.last_message,
         c.last_message_at,
-        -- Other user info
         CASE WHEN c.user1_id = :userId THEN c.user2_id ELSE c.user1_id END AS other_user_id,
         CASE WHEN c.user1_id = :userId THEN u2.first_name ELSE u1.first_name END AS other_first_name,
         CASE WHEN c.user1_id = :userId THEN u2.last_name ELSE u1.last_name END AS other_last_name,
         CASE WHEN c.user1_id = :userId THEN u2.gender ELSE u1.gender END AS other_gender,
         CASE WHEN c.user1_id = :userId THEN pd2.profile_picture_url ELSE pd1.profile_picture_url END AS other_picture,
-        -- Unread count
         (SELECT COUNT(*) FROM messages m
          WHERE m.conversation_id = c.id
            AND m.sender_id != :userId
@@ -40,7 +38,7 @@ const getConversations = async (req, res, next) => {
 const getMessages = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
-    const { page = 1, limit = 50 } = req.query;
+    const { page = 1, limit = 100 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
     // Verify user is part of this conversation
@@ -53,14 +51,20 @@ const getMessages = async (req, res, next) => {
     if (!conv) return next(new AppError('Conversation not found', 404));
 
     const [messages] = await sequelize.query(`
-      SELECT m.id, m.content, m.sender_id, m.is_read, m.created_at
+      SELECT
+        m.id,
+        m.content,
+        m.sender_id,
+        m.is_read,
+        m.created_at,
+        m.conversation_id
       FROM messages m
       WHERE m.conversation_id = :conversationId
       ORDER BY m.created_at ASC
       LIMIT :limit OFFSET :offset
     `, { replacements: { conversationId, limit: parseInt(limit), offset } });
 
-    // Mark all as read
+    // Mark all received messages as read
     await sequelize.query(`
       UPDATE messages SET is_read = TRUE
       WHERE conversation_id = :conversationId
@@ -94,7 +98,6 @@ const startConversation = async (req, res, next) => {
     const { userId } = req.params;
     if (userId === req.user.id) return next(new AppError('Cannot chat with yourself', 400));
 
-    // Ensure consistent ordering (lower UUID = user1)
     const user1_id = req.user.id < userId ? req.user.id : userId;
     const user2_id = req.user.id < userId ? userId : req.user.id;
 

@@ -101,11 +101,12 @@ io.on('connection', (socket) => {
       if (!conv) return;
 
       // Insert message
-      const [[msg]] = await sequelize.query(`
-        INSERT INTO messages (id, conversation_id, sender_id, content)
-        VALUES (gen_random_uuid(), :conversationId, :senderId, :content)
-        RETURNING id, conversation_id, sender_id, content, is_read, created_at
-      `, { replacements: { conversationId, senderId: userId, content: content.trim() } });
+const [msgRows] = await sequelize.query(`
+  INSERT INTO messages (id, conversation_id, sender_id, content)
+  VALUES (gen_random_uuid(), :conversationId, :senderId, :content)
+  RETURNING id, conversation_id, sender_id, content, is_read, created_at
+`, { replacements: { conversationId, senderId: userId, content: content.trim() } });
+const msg = msgRows[0];
 
       // Update conversation last_message
       await sequelize.query(`
