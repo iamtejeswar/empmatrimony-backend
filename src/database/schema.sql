@@ -3,15 +3,13 @@
 -- PostgreSQL 16+
 -- ============================================================
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================================
 -- USERS TABLE
 -- ============================================================
 CREATE TABLE IF NOT EXISTS users (
-    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email                   VARCHAR(255) NOT NULL UNIQUE,
     password                VARCHAR(255),
     first_name              VARCHAR(100) NOT NULL,
@@ -39,34 +37,34 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_google_id ON users(google_id);
-CREATE INDEX idx_users_account_status ON users(account_status);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_users_gender ON users(gender);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
+CREATE INDEX IF NOT EXISTS idx_users_account_status ON users(account_status);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_gender ON users(gender);
 
 -- ============================================================
 -- PERSONAL DETAILS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS personal_details (
-    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id         UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-    marital_status  VARCHAR(30) CHECK (marital_status IN ('never_married', 'divorced', 'widowed', 'awaiting_divorce')),
-    height          DECIMAL(5, 2),
-    weight          DECIMAL(5, 2),
-    mother_tongue   VARCHAR(100),
-    citizenship     VARCHAR(100) DEFAULT 'Indian',
-    about_me        TEXT,
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id             UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    marital_status      VARCHAR(30) CHECK (marital_status IN ('never_married', 'divorced', 'widowed', 'awaiting_divorce')),
+    height              DECIMAL(5, 2),
+    weight              DECIMAL(5, 2),
+    mother_tongue       VARCHAR(100),
+    citizenship         VARCHAR(100) DEFAULT 'Indian',
+    about_me            TEXT,
     profile_picture_url TEXT,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
 -- FAMILY DETAILS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS family_details (
-    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id                 UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     father_name             VARCHAR(150),
     father_occupation       VARCHAR(150),
@@ -86,14 +84,14 @@ CREATE TABLE IF NOT EXISTS family_details (
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_family_details_city ON family_details(city);
-CREATE INDEX idx_family_details_state ON family_details(state);
+CREATE INDEX IF NOT EXISTS idx_family_details_city ON family_details(city);
+CREATE INDEX IF NOT EXISTS idx_family_details_state ON family_details(state);
 
 -- ============================================================
 -- EMPLOYMENT DETAILS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS employment_details (
-    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id                 UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     highest_education       VARCHAR(150),
     education_details       TEXT,
@@ -113,14 +111,14 @@ CREATE TABLE IF NOT EXISTS employment_details (
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_employment_type ON employment_details(employment_type);
-CREATE INDEX idx_employment_salary ON employment_details(monthly_salary);
+CREATE INDEX IF NOT EXISTS idx_employment_type ON employment_details(employment_type);
+CREATE INDEX IF NOT EXISTS idx_employment_salary ON employment_details(monthly_salary);
 
 -- ============================================================
 -- COMMUNITY & HOROSCOPE DETAILS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS community_details (
-    id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id                     UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     religion                    VARCHAR(30) CHECK (religion IN ('hindu', 'muslim', 'christian', 'sikh', 'jain', 'buddhist', 'others')),
     caste                       VARCHAR(10) CHECK (caste IN ('oc', 'bc', 'mbc', 'sc', 'st', 'others')),
@@ -140,15 +138,15 @@ CREATE TABLE IF NOT EXISTS community_details (
     updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_community_religion ON community_details(religion);
-CREATE INDEX idx_community_caste ON community_details(caste);
-CREATE INDEX idx_community_raasi ON community_details(raasi);
+CREATE INDEX IF NOT EXISTS idx_community_religion ON community_details(religion);
+CREATE INDEX IF NOT EXISTS idx_community_caste ON community_details(caste);
+CREATE INDEX IF NOT EXISTS idx_community_raasi ON community_details(raasi);
 
 -- ============================================================
 -- DOCUMENTS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS documents (
-    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     document_type       VARCHAR(30) NOT NULL CHECK (document_type IN (
                             'profile_picture', 'aadhaar', 'pan', 'driving_license',
@@ -168,15 +166,15 @@ CREATE TABLE IF NOT EXISTS documents (
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_documents_user_id ON documents(user_id);
-CREATE INDEX idx_documents_type ON documents(document_type);
-CREATE INDEX idx_documents_verification_status ON documents(verification_status);
+CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
+CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(document_type);
+CREATE INDEX IF NOT EXISTS idx_documents_verification_status ON documents(verification_status);
 
 -- ============================================================
--- SEARCH PREFERENCES (for future match recommendations)
+-- SEARCH PREFERENCES
 -- ============================================================
 CREATE TABLE IF NOT EXISTS search_preferences (
-    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id             UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     preferred_gender    VARCHAR(10),
     min_age             INTEGER,
@@ -192,10 +190,10 @@ CREATE TABLE IF NOT EXISTS search_preferences (
 );
 
 -- ============================================================
--- INTEREST SYSTEM (for future)
+-- INTERESTS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS interests (
-    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     sender_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     receiver_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     status      VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
@@ -205,14 +203,97 @@ CREATE TABLE IF NOT EXISTS interests (
     UNIQUE(sender_id, receiver_id)
 );
 
-CREATE INDEX idx_interests_receiver ON interests(receiver_id, status);
-CREATE INDEX idx_interests_sender ON interests(sender_id);
+CREATE INDEX IF NOT EXISTS idx_interests_receiver ON interests(receiver_id, status);
+CREATE INDEX IF NOT EXISTS idx_interests_sender ON interests(sender_id);
 
 -- ============================================================
--- SUBSCRIPTIONS (for future payment integration)
+-- PROFILE VIEWS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS profile_views (
+    id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    viewer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    viewed_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    viewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(viewer_id, viewed_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_profile_views_viewed ON profile_views(viewed_id, viewed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_profile_views_viewer ON profile_views(viewer_id);
+
+-- ============================================================
+-- BLOCKS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS blocks (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    blocker_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    blocked_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(blocker_id, blocked_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_blocks_blocker ON blocks(blocker_id);
+CREATE INDEX IF NOT EXISTS idx_blocks_blocked ON blocks(blocked_id);
+
+-- ============================================================
+-- REPORTS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS reports (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reported_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reason      VARCHAR(50) NOT NULL CHECK (reason IN (
+                    'fake_profile', 'inappropriate_content', 'harassment',
+                    'spam', 'scam', 'underage', 'other'
+                )),
+    description TEXT,
+    status      VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'dismissed')),
+    reviewed_by UUID REFERENCES users(id),
+    reviewed_at TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reports_reported ON reports(reported_id);
+CREATE INDEX IF NOT EXISTS idx_reports_reporter ON reports(reporter_id);
+CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
+
+-- ============================================================
+-- CONVERSATIONS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS conversations (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user1_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user2_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    last_message    TEXT,
+    last_message_at TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user1_id, user2_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_user1 ON conversations(user1_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_user2 ON conversations(user2_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_last_msg ON conversations(last_message_at DESC);
+
+-- ============================================================
+-- MESSAGES
+-- ============================================================
+CREATE TABLE IF NOT EXISTS messages (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    sender_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content         TEXT NOT NULL,
+    is_read         BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages(conversation_id, is_read) WHERE is_read = FALSE;
+
+-- ============================================================
+-- SUBSCRIPTIONS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS subscriptions (
-    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     plan            VARCHAR(20) NOT NULL CHECK (plan IN ('basic', 'premium', 'gold')),
     amount          DECIMAL(10, 2) NOT NULL,
@@ -225,10 +306,10 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_subscriptions_user ON subscriptions(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id, status);
 
 -- ============================================================
--- AUTO-UPDATE TIMESTAMPS TRIGGER
+-- AUTO-UPDATE TIMESTAMPS
 -- ============================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -238,27 +319,24 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_personal_details_updated_at BEFORE UPDATE ON personal_details FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_family_details_updated_at BEFORE UPDATE ON family_details FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_employment_details_updated_at BEFORE UPDATE ON employment_details FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_community_details_updated_at BEFORE UPDATE ON community_details FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON documents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$ BEGIN CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TRIGGER update_personal_details_updated_at BEFORE UPDATE ON personal_details FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TRIGGER update_family_details_updated_at BEFORE UPDATE ON family_details FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TRIGGER update_employment_details_updated_at BEFORE UPDATE ON employment_details FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TRIGGER update_community_details_updated_at BEFORE UPDATE ON community_details FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON documents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ============================================================
--- DEFAULT ADMIN USER (change password after first login)
+-- DEFAULT ADMIN USER
 -- ============================================================
 INSERT INTO users (
     id, email, first_name, last_name, role,
     is_email_verified, account_status, admin_approved, auth_provider
 ) VALUES (
-    uuid_generate_v4(),
+    gen_random_uuid(),
     'admin@matrimony.com',
     'Platform',
     'Admin',
     'admin',
-    TRUE,
-    'active',
-    TRUE,
-    'local'
+    TRUE, 'active', TRUE, 'local'
 ) ON CONFLICT (email) DO NOTHING;

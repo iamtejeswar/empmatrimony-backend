@@ -87,48 +87,52 @@ io.on('connection', (socket) => {
 
   // Send message
   socket.on('send_message', async ({ conversationId, content }) => {
-    if (!conversationId || !content?.trim()) return;
-    try {
-      const { sequelize } = require('./config/database');
+  if (!conversationId || !content?.trim()) return;
+  try {
+    const { sequelize } = require('./config/database');
+    const { sendToUser } = require('./config/firebase');
 
-      // Verify sender is part of conversation
-      const [[conv]] = await sequelize.query(`
-        SELECT id, user1_id, user2_id FROM conversations
-        WHERE id = :conversationId
-          AND (user1_id = :userId OR user2_id = :userId)
-      `, { replacements: { conversationId, userId } });
+    const [[conv]] = await sequelize.query(`
+      SELECT id, user1_id, user2_id FROM conversations
+      WHERE id = :conversationId
+        AND (user1_id = :userId OR user2_id = :userId)
+    `, { replacements: { conversationId, userId } });
 
-      if (!conv) return;
+    if (!conv) return;
 
-      // Insert message
-const [msgRows] = await sequelize.query(`
-  INSERT INTO messages (id, conversation_id, sender_id, content)
-  VALUES (gen_random_uuid(), :conversationId, :senderId, :content)
-  RETURNING id, conversation_id, sender_id, content, is_read, created_at
-`, { replacements: { conversationId, senderId: userId, content: content.trim() } });
-const msg = msgRows[0];
+    const [msgRows] = await sequelize.query(`
+      INSERT INTO messages (id, conversation_id, sender_id, content)
+      VALUES (gen_random_uuid(), :conversationId, :senderId, :content)
+      RETURNING id, conversation_id, sender_id, content, is_read, created_at
+    `, { replacements: { conversationId, senderId: userId, content: content.trim() } });
+    const msg = msgRows[0];
 
-      // Update conversation last_message
-      await sequelize.query(`
-        UPDATE conversations
-        SET last_message = :content, last_message_at = NOW()
-        WHERE id = :conversationId
-      `, { replacements: { conversationId, content: content.trim().substring(0, 100) } });
+    await sequelize.query(`
+      UPDATE conversations
+      SET last_message = :content, last_message_at = NOW()
+      WHERE id = :conversationId
+    `, { replacements: { conversationId, content: content.trim().substring(0, 100) } });
 
-      // Emit to everyone in the conversation room (including sender)
-      io.to(`conv:${conversationId}`).emit('message_received', msg);
+    io.to(`conv:${conversationId}`).emit('message_received', msg);
 
-      // Notify the other user even if not in room (for unread badge)
-      const otherUserId = conv.user1_id === userId ? conv.user2_id : conv.user1_id;
-      io.to(`user:${otherUserId}`).emit('new_message_notification', {
-        conversationId,
-        message: msg,
-      });
-    } catch (err) {
-      logger.error('Socket send_message error:', err);
-    }
-  });
+    const otherUserId = conv.user1_id === userId ? conv.user2_id : conv.user1_id;
+    io.to(`user:${otherUserId}`).emit('new_message_notification', { conversationId, message: msg });
 
+    // FCM push to other user
+    const [[sender]] = await sequelize.query(
+      'SELECT first_name FROM users WHERE id = :userId',
+      { replacements: { userId } }
+    );
+    sendToUser(otherUserId, {
+      title: `New message from ${sender?.first_name || 'Someone'}`,
+      body: content.trim().substring(0, 100),
+      data: { url: `/chat/${conversationId}`, conversationId },
+    }).catch(() => {});
+
+  } catch (err) {
+    logger.error('Socket send_message error:', err);
+  }
+});
   // Typing indicators
   socket.on('typing', ({ conversationId }) => {
     socket.to(`conv:${conversationId}`).emit('user_typing', { userId, conversationId });
@@ -223,6 +227,10 @@ app.use(`${API_PREFIX}/documents`, documentRoutes);
 app.use(`${API_PREFIX}/interests`, interestRoutes);
 app.use(`${API_PREFIX}/blocks`, blocksRoutes);
 app.use(`${API_PREFIX}/chat`, chatRoutes);
+
+//chat
+app.use('/migrate', require('./routes/migrate_fcm'));
+   app.use(`${API_PREFIX}/notifications`, require('./routes/notifications'));
 
 // ---- 404 & Error Handler ----
 app.use('*', (req, res, next) => next(new AppError(`Route ${req.originalUrl} not found`, 404)));
