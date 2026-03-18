@@ -228,8 +228,7 @@ app.use(`${API_PREFIX}/interests`, interestRoutes);
 app.use(`${API_PREFIX}/blocks`, blocksRoutes);
 app.use(`${API_PREFIX}/chat`, chatRoutes);
 
-//chat
-app.use('/migrate', require('./routes/migrate_fcm'));
+
    app.use(`${API_PREFIX}/notifications`, require('./routes/notifications'));
 
 // ---- 404 & Error Handler ----
