@@ -1,6 +1,7 @@
 // src/controllers/interestController.js
 const { Interest, User, PersonalDetails, FamilyDetails, EmploymentDetails, CommunityDetails } = require('../models');
 const { AppError } = require('../utils/AppError');
+const { sendToUser } = require('../config/firebase');
 
 // Profile include helper
 const profileInclude = [
@@ -35,6 +36,13 @@ exports.sendInterest = async (req, res, next) => {
       message: message || null,
     });
 
+    // FCM push to receiver
+    sendToUser(receiverId, {
+      title: '💌 New Interest Received',
+      body: `${req.user.firstName} ${req.user.lastName[0]}. has sent you an interest!`,
+      data: { url: `/interests`, type: 'new_interest' },
+    }).catch(() => {});
+
     res.status(201).json({ success: true, message: 'Interest sent successfully!', data: interest });
   } catch (err) {
     next(err);
@@ -61,6 +69,15 @@ exports.respondInterest = async (req, res, next) => {
 
     interest.status = action;
     await interest.save();
+
+    // FCM push to sender only if accepted
+    if (action === 'accepted') {
+      sendToUser(interest.sender_id, {
+        title: '🎉 Interest Accepted!',
+        body: `${req.user.firstName} ${req.user.lastName[0]}. accepted your interest!`,
+        data: { url: `/profile/${userId}`, type: 'interest_accepted' },
+      }).catch(() => {});
+    }
 
     res.json({ success: true, message: `Interest ${action}!`, data: interest });
   } catch (err) {
